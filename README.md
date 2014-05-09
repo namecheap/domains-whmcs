@@ -58,9 +58,9 @@ You can refer to http://docs.whmcs.com/Domains_Configuration for more informatio
 
 To add additional fields required for our module (language for IDN domains, Job Title field for .CA and .AU domains, extended attributed for .FR domains) you will need to connect our own additionaldomainfields.php file. To do this, please add the following strings in the end of includes/additionaldomainfields.php file:
 
- if (file_exists(dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php")) {
+ `if (file_exists(dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php")) {
   include dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php"; 
- }
+ }`
 
 
 ##### Support
