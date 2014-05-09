@@ -40,16 +40,15 @@ NOTE: Namecheap has a production as well as a test server environment. The test 
 To configure WHMCS for use with Namecheap, perform the following steps:
 
 1. Login to your **WHMCS admin** panel.
-2. Click on **Setup** menu, select **Products/Services** and click on **Domain Registrars.**
+2. Click on **Setup** menu, select **Products/Services** and click on **Domain Registrars**.
 3. Click on Activate next to Namecheap in the list:
-
  ![Activate Plugin](http://files.namecheap.com/images/googlecode/Activate_Namecheap.png "Activate Plugin")
 4. Enter your API credentials. If you wish to try out the plug-in in sandbox, make sure to enter your sandbox username, sandbox API key in the corresponding text boxes and check the “Test Mode” checkbox:
 5. Optional settings:
-- If you have a promotional coupon code from Namecheap you may enter it in the module settings. The discounted price will be automatically applied on your orders according to the coupon pricing.
+ - If you have a promotional coupon code from Namecheap you may enter it in the module settings. The discounted price will be automatically applied on your orders according to the coupon pricing.
 SyncNextDueDate option will enable expiry date sync script that will update the expiry and next due dates on the domain names. To utilize this feature you will need to setup a cron with the command below to run every few days:
  php -q /home/houhut/public_html/whmcs/modules/registrars/namecheap/namecheapsync.php 
-- If you’re having any issues with the module it is recommended to enable DebugMode and check the logs under Utilities > Logs > Module Log. If this option is disabled the module will be logging only errors returned by the module.
+ - If you’re having any issues with the module it is recommended to enable DebugMode and check the logs under Utilities > Logs > Module Log. If this option is disabled the module will be logging only errors returned by the module.
 6. Click Save Changes.
 
 
@@ -59,10 +58,9 @@ You can refer to http://docs.whmcs.com/Domains_Configuration for more informatio
 
 To add additional fields required for our module (language for IDN domains, Job Title field for .CA and .AU domains, extended attributed for .FR domains) you will need to connect our own additionaldomainfields.php file. To do this, please add the following strings in the end of includes/additionaldomainfields.php file:
 
-If (file_exists(dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php")) {
-
-include
-dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php"; }
+ if (file_exists(dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php")) {
+  include dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php"; 
+ }
 
 
 ##### Support
