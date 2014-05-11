@@ -5,15 +5,20 @@
 
 Note: We have two variants of Namecheap.com WHMCS Registrar plugins for WHMCS version 4 and 5. You need to download and install Namecheap.com WHMCS Registrar Plugin version 1.1.12 is for WHMCS version 4 and Namecheap.com WHMCS Registrar Plugin version 1.2.7 for WHMCS 5.
 
-##### Updated on Oct 22, 2013 to Version 1.2.7 for WHMCS 5
+##### Updated on May 11, 2014 to Version 1.2.7 for WHMCS 5
 
-- Added .fr, .sg, .com.sg, .fr, .net.au, .org.au, .com.au, .es, .com.es, .nom.es, .org.es support
-- Removed error "Domain name not found" for domains in any status, except for not in "Active" or "Expired"
-- Added "Job Title" additional field for .ca and .au domains
-- All errors from API response are returned by the module (in case there is more than one error)
-- Fixed error with domains that have been added in punycode to WHMCS
-- Added conversion for registrant state/province and zip code fields for .ca domains according to the registry requirements
-- Updated on Jul 25, 2012 to Version 1.1.12 for WHMCS 4
+- Added ability to enable WhoisGuard with transfers
+- Added active and transfer domain syncing module functions according to WHMCS Domain Cron Synchronisation flow
+- Removed module domain synchronization script (deprecated)
+- Changed method of creating Registrant/Billing/Admin/Tech contact details API parameters depending on WHMCS general settings for domains:
+- When "Use Clients Details" checkbox is checked Registrant/Billing/Admin/Tech contacts are taken from Client details, if not - Registrant details are taken from Client details, and Billing/Admin/Tech - from Default Contact Details.
+- Added quotes decoding for epp code (whmcs bug)
+- Removed "http_x_forwarded_for" for client ip address
+- Added .asia Locality parameter to custom additionaldomainfields.php
+ 
+
+##### Updated on Jul 25, 2012 to Version 1.1.12 for WHMCS 4
+
 - Extended attributes for .me.uk domains
 
 ##### ReleaseNotes
@@ -46,8 +51,6 @@ To configure WHMCS for use with Namecheap, perform the following steps:
 4. Enter your API credentials. If you wish to try out the plug-in in sandbox, make sure to enter your sandbox username, sandbox API key in the corresponding text boxes and check the “Test Mode” checkbox:
 5. Optional settings:
  - If you have a promotional coupon code from Namecheap you may enter it in the module settings. The discounted price will be automatically applied on your orders according to the coupon pricing.
-SyncNextDueDate option will enable expiry date sync script that will update the expiry and next due dates on the domain names. To utilize this feature you will need to setup a cron with the command below to run every few days:
- php -q /home/houhut/public_html/whmcs/modules/registrars/namecheap/namecheapsync.php 
  - If you’re having any issues with the module it is recommended to enable DebugMode and check the logs under Utilities > Logs > Module Log. If this option is disabled the module will be logging only errors returned by the module.
 6. Click Save Changes.
 
@@ -65,4 +68,4 @@ To add additional fields required for our module (language for IDN domains, Job 
 
 ##### Support
 
-Please use the Issues page to report bugs and provide feedback.Alternatively, you can also submit a ticket for assistance.
+PPlease [submit a ticket](https://support.namecheap.com/index.php?/Tickets/Submit) to report bugs, provide feedback or receive assistance.
