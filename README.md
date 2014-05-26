@@ -3,9 +3,9 @@
 
 ***
 
-Note: We have two variants of Namecheap.com WHMCS Registrar plugins for WHMCS version 4 and 5. You need to download and install Namecheap.com WHMCS Registrar Plugin version 1.1.12 is for WHMCS version 4 and Namecheap.com WHMCS Registrar Plugin version 1.2.7 for WHMCS 5.
+Note: We have two variants of Namecheap.com WHMCS Registrar plugins for WHMCS version 4 and 5. You need to download and install [Namecheap.com WHMCS Registrar Plugin version 1.1.12 is for WHMCS version 4](https://github.com/namecheap/domains-whmcs4) and Namecheap.com WHMCS Registrar Plugin version 1.2.8 for WHMCS 5.
 
-##### Updated on May 11, 2014 to Version 1.2.7 for WHMCS 5
+##### Updated on May 13, 2014 to Version 1.2.8 for WHMCS 5
 
 - Added ability to enable WhoisGuard with transfers
 - Added active and transfer domain syncing module functions according to WHMCS Domain Cron Synchronisation flow
@@ -17,11 +17,7 @@ Note: We have two variants of Namecheap.com WHMCS Registrar plugins for WHMCS ve
 - Added .asia Locality parameter to custom additionaldomainfields.php
  
 
-##### Updated on Jul 25, 2012 to Version 1.1.12 for WHMCS 4
-
-- Extended attributes for .me.uk domains
-
-##### ReleaseNotes
+##### [ReleaseNotes](https://github.com/namecheap/domains-whmcs/wiki/Changelog)
 
 Namecheap.com WHMCS Registrar plug-in is an open-source plug-in that is distributed free of charge. It focuses on integrating Namecheap as a domain registrar at WHMCS.
 
@@ -47,8 +43,9 @@ To configure WHMCS for use with Namecheap, perform the following steps:
 1. Login to your **WHMCS admin** panel.
 2. Click on **Setup** menu, select **Products/Services** and click on **Domain Registrars**.
 3. Click on Activate next to Namecheap in the list:
- ![Activate Plugin](http://files.namecheap.com/images/googlecode/Activate_Namecheap.png "Activate Plugin")
+![Activate Plugin](http://files.namecheap.com/images/googlecode/Activate_Namecheap.png)
 4. Enter your API credentials. If you wish to try out the plug-in in sandbox, make sure to enter your sandbox username, sandbox API key in the corresponding text boxes and check the “Test Mode” checkbox:
+![Test Mode](http://files.namecheap.com/images/googlecode/Configure_Namecheap.png)
 5. Optional settings:
  - If you have a promotional coupon code from Namecheap you may enter it in the module settings. The discounted price will be automatically applied on your orders according to the coupon pricing.
  - If you’re having any issues with the module it is recommended to enable DebugMode and check the logs under Utilities > Logs > Module Log. If this option is disabled the module will be logging only errors returned by the module.
@@ -68,4 +65,4 @@ To add additional fields required for our module (language for IDN domains, Job 
 
 ##### Support
 
-PPlease [submit a ticket](https://support.namecheap.com/index.php?/Tickets/Submit) to report bugs, provide feedback or receive assistance.
+Please [submit a ticket](https://support.namecheap.com/index.php?/Tickets/Submit) to report bugs, provide feedback or receive assistance.
