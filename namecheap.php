@@ -2,7 +2,7 @@
 // ****************************************************************************
 // *                                                                          *
 // * NameCheap.com WHMCS Registrar Module                                     *
-// * Version 1.2.8                                                            *
+// * Version 1.2.9                                                            *
 // * http://code.google.com/p/namecheap/                                      *
 // *                                                                          *
 // * Copyright 2008-2015 NameCheap.com                                        *
@@ -31,6 +31,14 @@
 // *                                                                          *
 // ****************************************************************************
 // * Changes:
+// * March, 26, 2015 (1.2.9)
+// * - Removed debug mode
+// * - Removed transforming CA and US states as this is already done in WHMCS
+// * - Updated the phone number field used for domain registrations as WHMCS formats this correctly already
+// * - Whenever logModuleCall is used in the main file, ensure that password is passed to be obscured
+// * - Updated sync to search for the specific domain over listing all domains
+// * - Correct some docblocks in the namecheapapi file.
+// * - Add support for uk domains
 // * April, 17, 2014 (1.2.8)
 // * - Added ability to enable WhoisGuard with transfers
 // * - Added active and transfer domain syncing module functions according to WHMCS Domain Cron Synchronisation flow
