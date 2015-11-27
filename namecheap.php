@@ -2,10 +2,10 @@
 // ****************************************************************************
 // *                                                                          *
 // * NameCheap.com WHMCS Registrar Module                                     *
-// * Version 1.2.8
+// * Version 1.2.9                                                            *
 // * http://code.google.com/p/namecheap/                                      *
 // *                                                                          *
-// * Copyright 2008-2013 NameCheap.com                                        *
+// * Copyright 2008-2015 NameCheap.com                                        *
 // *                                                                          *
 // * Licensed under the Apache License, Version 2.0 (the "License");          *
 // * you may not use this file except in compliance with the License.         *
@@ -23,15 +23,22 @@
 // *                                                                          *
 // * To install, create a folder named namecheap under                        *
 // * modules/registrar under your whmcs root directory and place              *
-// * namecheap.php, namecheapapi.php, namecheapsync.php,                      *
-// * additionaldomainfields.php, logo.gif into it.                            *
+// * namecheap.php, namecheapapi.php, additionaldomainfields.php              *
+// * logo.gif into it                                                         *
 // * Then in WHMCS admin menu, go to registrar module settings and select     *
 // * Namecheap, and configure. You should enter your api key in               *
 // * the password field and api username in username field.                   *
 // *                                                                          *
 // ****************************************************************************
 // * Changes:
-// *
+// * March, 26, 2015 (1.2.9)
+// * - Removed debug mode
+// * - Removed transforming CA and US states as this is already done in WHMCS
+// * - Updated the phone number field used for domain registrations as WHMCS formats this correctly already
+// * - Whenever logModuleCall is used in the main file, ensure that password is passed to be obscured
+// * - Updated sync to search for the specific domain over listing all domains
+// * - Correct some docblocks in the namecheapapi file.
+// * - Add support for uk domains
 // * April, 17, 2014 (1.2.8)
 // * - Added ability to enable WhoisGuard with transfers
 // * - Added active and transfer domain syncing module functions according to WHMCS Domain Cron Synchronisation flow
@@ -131,15 +138,30 @@
 function namecheap_getConfigArray()
 {
     $configarray = array(
-        'Username' => array('Type' => "text", 'Size' => "20", 'Description' => "Enter your username here."),
-        'Password' => array('Type' => "text", 'Size' => "20", 'Description' => "Enter your API key here. To get your api key, go to Manage Profile section in Namecheap.com, then click API access link on the left hand side. C/p the key here. DON'T include your password."),
-        //'AddFreePositiveSSL' => array('Type' => "yesno", 'Description' => 'Add free PositiveSSL for the domains purchased'),
-        'PromotionCode' => array('Type' => "text", 'Size' => "20", 'Description' => "Enter your promotional (coupon) code."),
-        'SandboxUsername' => array('Type' => "text", 'Size' => "20", 'Description' => "Enter your sandbox username here. (This will be used only if you set the test mode on.)"),
-        'SandboxPassword' => array('Type' => "text", 'Size' => "20", 'Description' => "Enter your sandbox API key here. (This will be used only if you set the test mode on.)"),
-        'TestMode' => array('Type' => "yesno"),
-        //'SyncNextDueDate' => array('Type' => "yesno", 'Description' => "Tick this box if you want the expiry date sync script to update the expiry and next due dates (cron must be configured)"),
-        'DebugMode' => array('Type' => "yesno"),
+        'Username' => array('Type' => "text", 'Size' => "20", 'Description' => "Enter your username here.",),
+        'Password' => array(
+            'Type' => "text",
+            'Size' => "20",
+            'Description' => "Enter your API key here. "
+                . "To get your api key, go to Manage Profile section in Namecheap.com,"
+                . " then click API access link on the left hand side. C/p the key here. DON'T include your password.",
+        ),
+        'PromotionCode' => array(
+            'Type' => "text",
+            'Size' => "20",
+            'Description' => "Enter your promotional (coupon) code.",
+        ),
+        'SandboxUsername' => array(
+            'Type' => "text",
+            'Size' => "20",
+            'Description' => "Enter your sandbox username here. (This will be used only if you set the test mode on.)",
+        ),
+        'SandboxPassword' => array(
+            'Type' => "text",
+            'Size' => "20",
+            'Description' => "Enter your sandbox API key here. (This will be used only if you set the test mode on.)",
+        ),
+        'TestMode' => array('Type' => "yesno",),
     );
     return $configarray;
 }
@@ -149,33 +171,32 @@ function namecheap_GetNameservers($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     // do not get nameservers for domains that not registered
-    $r = mysql_query('SELECT * from tbldomains WHERE id='.(int)$params['domainid']);
-    if (!mysql_num_rows($r)){
-        return;
-    }    
-    $row = mysql_fetch_assoc($r);    
-    if (!in_array($row['status'],array(/*'Pending','Pending Transfer',*/'Active','Expired',/*'Cancelled','Fraud'*/))){
-        return;
+    if (!in_array(
+        get_query_val('tbldomains', 'status', array('id' => $params['domainid'])),
+        array('Active', 'Expired'))
+    ) {
+        return array('error' => 'Unable to obtain Nameservers for an unregistered domain');
     }
-    
-    
+    $response = '';
+    $result = $request_params = $values = array();
+
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
-    $sld = $oIDNA->getEncodedSld();    
-    
+    $sld = $oIDNA->getEncodedSld();
+
     try
     {
         $request_params = array(
             'SLD' => $sld,
             'TLD' => $tld
         );
-        $api = new NamecheapRegistrarApi($username, $password, $testmode,$debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.dns.getList", $request_params);
         $result = $api->parseResponse($response);
 
@@ -191,28 +212,34 @@ function namecheap_GetNameservers($params)
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'GetNameservers', array('command' => "namecheap.domains.dns.getList") + $request_params, $response, $result, array());
-        }
+        logModuleCall(
+            'namecheap',
+            'GetNameservers',
+            array('command' => "namecheap.domains.dns.getList") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
 
 function namecheap_SaveNameservers($params)
 {
-    
+
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-    
+    $response = '';
+    $result = $request_params = $values = array();
+
     $defaultNs = true;
     $defaultNsServers = array("dns1.registrar-servers.com", "dns2.registrar-servers.com", "dns3.registrar-servers.com", "dns4.registrar-servers.com", "dns5.registrar-servers.com");
 
@@ -223,30 +250,35 @@ function namecheap_SaveNameservers($params)
             $defaultNs = false;
         }
     }
-    
+
     try
     {
         $request_params = array(
             'SLD' => $sld,
             'TLD' => $tld
         );
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
-        
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
+
         if (false===$defaultNs){
             $request_params['Nameservers'] = implode(',', $nameservers);
             $response = $api->request("namecheap.domains.dns.setCustom", $request_params);
         }else{
             $response = $api->request("namecheap.domains.dns.setDefault", $request_params);
         }
-        
-        
+
+
         $result = $api->parseResponse($response);
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'SetNameservers', array('command' => "namecheap.domains.dns.setCustom") + $request_params, $response, $result, array());
-        }
+        logModuleCall(
+            'namecheap',
+            'SetNameservers',
+            array('command' => "namecheap.domains.dns.setCustom") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -256,21 +288,23 @@ function namecheap_GetRegistrarLock($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
+
+    $response = '';
+    $result = $request_params = $values = array();
 
     try
     {
         $request_params = array(
             'DomainName' => $sld . '.' . $tld
         );
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.getRegistrarLock", $request_params);
         $result = $api->parseResponse($response);
 
@@ -279,9 +313,14 @@ function namecheap_GetRegistrarLock($params)
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'GetRegistrarLock', array('command' => "namecheap.domains.getRegistrarLock") + $request_params, $response, $result, array());
-        }
+        logModuleCall(
+            'namecheap',
+            'GetRegistrarLock',
+            array('command' => "namecheap.domains.getRegistrarLock") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -291,14 +330,16 @@ function namecheap_SaveRegistrarLock($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
-    $sld = $oIDNA->getEncodedSld();    
+    $sld = $oIDNA->getEncodedSld();
+
+    $response = '';
+    $result = $request_params = $values = array();
 
     try
     {
@@ -306,21 +347,26 @@ function namecheap_SaveRegistrarLock($params)
             'DomainName' => $sld . '.' . $tld,
             'LockAction' => ("locked" == $params['lockenabled']) ? "lock" : "unlock"
         );
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.setRegistrarLock", $request_params);
         $result = $api->parseResponse($response);
     }
     catch (Exception $e) {
-        $rl_unable_domains = array("ca", "cm", "co.uk", "org.uk", "me.uk", "de", "eu", "ws");
+        $rl_unable_domains = array("ca", "cm", "co.uk", "org.uk", "me.uk", "de", "eu", "ws", "uk");
 
         $msg = $e->getMessage();
         $values['error'] = "An error occurred: " . $msg;
         if ("[3031510] Failed to get Registrar Lock Status" == $msg && in_array(strtolower($tld), $rl_unable_domains)) {
             $values['error'] = "Registrar lock is not applicable for <strong>" . $tld . "</strong> domains.";
         }
-        if (!$debugmode){
-            logModuleCall('namecheap', 'SaveRegistrarLock', array('command' => "namecheap.domains.setRegistrarLock") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'SaveRegistrarLock',
+            array('command' => "namecheap.domains.setRegistrarLock") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -330,21 +376,22 @@ function namecheap_GetEmailForwarding($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
 
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
             'DomainName' => $sld . '.' . $tld
         );
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.dns.getEmailForwarding", $request_params);
         $result = $api->parseResponse($response);
 
@@ -363,9 +410,14 @@ function namecheap_GetEmailForwarding($params)
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'GetEmailForwarding', array('command' => "namecheap.domains.dns.getEmailForwarding") + $request_params, $response, $result, array()); 
-        }
+        logModuleCall(
+            'namecheap',
+            'GetEmailForwarding',
+            array('command' => "namecheap.domains.dns.getEmailForwarding") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -375,14 +427,15 @@ function namecheap_SaveEmailForwarding($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
+    $response = '';
+    $result = $request_params = $values = array();
 
     try
     {
@@ -395,15 +448,20 @@ function namecheap_SaveEmailForwarding($params)
                 $request_params['ForwardTo' . ($k + 1)] = $params['forwardto'][$k];
             }
         }
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.dns.setEmailForwarding", $request_params);
         $result = $api->parseResponse($response);
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'SaveEmailForwarding', array('command' => "namecheap.domains.dns.setEmailForwarding") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'SaveEmailForwarding',
+            array('command' => "namecheap.domains.dns.setEmailForwarding") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -413,22 +471,22 @@ function namecheap_GetDNS($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
             'SLD' => $sld,
             'TLD' => $tld
         );
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.dns.getHosts", $request_params);
         $result = $api->parseResponse($response);
 
@@ -436,7 +494,6 @@ function namecheap_GetDNS($params)
         if (!isset($host[0])) {
             $host = array($host);
         }
-        $values = array();
         foreach ($host as $v) {
             $values[] = array(
                 'hostname' => $v['@attributes']['Name'],
@@ -447,9 +504,14 @@ function namecheap_GetDNS($params)
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'GetDNS', array('command' => "namecheap.domains.dns.getHosts") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'GetDNS',
+            array('command' => "namecheap.domains.dns.getHosts") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -459,22 +521,22 @@ function namecheap_SaveDNS($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
-    $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
-    $sld = $oIDNA->getEncodedSld();    
 
+    $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
+    $sld = $oIDNA->getEncodedSld();
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
             'SLD' => $sld,
             'TLD' => $tld
         );
-        
+
         foreach ($params['dnsrecords'] as $k => $v) {
             if (!empty($v['hostname']) && !empty($v['type']) && !empty($v['address'])) {
                 $request_params['HostName' . ($k + 1)]   = $v['hostname'];
@@ -488,60 +550,61 @@ function namecheap_SaveDNS($params)
                 }
             }
         }
-        
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.dns.setHosts", $request_params);
         $result = $api->parseResponse($response);
 
         if (isset($result['DomainDNSSetHostsResult']['Warnings']['Warning'])) {
             $message = "Saving DNS warning<br />"
-                     . "-----------------------------------------------------------------------------------------<br />"
-                     . $result['DomainDNSSetHostsResult']['Warnings']['Warning']['@value'] . "<br />"
-                     . "-----------------------------------------------------------------------------------------<br />"
-                     . "Domain: " . $tld . "." . $sld . "<br />"
-                     . "<pre>" .  print_r($params['dnsrecords']) . "</pre>";
-            sendadminnotification("system", "WHMCS Namecheap Domain Registrar Module", $message);
+                . "-----------------------------------------------------------------------------------------<br />"
+                . $result['DomainDNSSetHostsResult']['Warnings']['Warning']['@value'] . "<br />"
+                . "-----------------------------------------------------------------------------------------<br />"
+                . "Domain: " . $tld . "." . $sld . "<br />"
+                . "<pre>" .  print_r($params['dnsrecords']) . "</pre>";
+            sendAdminNotification("system", "WHMCS Namecheap Domain Registrar Module", $message);
         }
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'SaveDNS', array('command' => "namecheap.domains.dns.setHosts") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'SaveDNS',
+            array('command' => "namecheap.domains.dns.setHosts") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
 
 function namecheap_RegisterDomain($params)
 {
-    
+
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
-    $sld = $oIDNA->getEncodedSld();    
-    
-    $nameservers = array($params['ns1'], $params['ns2'], $params['ns3'], $params['ns4'],$params['ns5']);
+    $sld = $oIDNA->getEncodedSld();
+    $response = '';
+    $result = $request_params = $values = array();
+    $nameservers = array($params['ns1'], $params['ns2'], $params['ns3'], $params['ns4'], $params['ns5']);
     foreach ($nameservers as $k => $v) {
         if (!$v) { unset($nameservers[$k]); }
     }
     try
     {
-        
+
         if('ca'==strtolower($tld)){
-            // change state province for US and CA countries            
-            if(!empty(NamecheapRegistrarApi::$_caStateProvince[$params['admincountry']][str_replace(' ', '', $params['adminstate'] )])){
-                $params['adminstate'] = NamecheapRegistrarApi::$_caStateProvince[$params['admincountry']][str_replace(' ', '', $params['adminstate'] )];
-            }
             $params['adminpostcode'] =str_replace(' ','',$params['adminpostcode']);
             // change zip code
-            if('CA'==$params['admincountry']){                
+            if('CA'==$params['admincountry']){
                 if(' ' != $params['adminpostcode'][3]){
                     $params['adminpostcode'] = substr($params['adminpostcode'], 0, 3) . ' ' . substr($params['adminpostcode'], 3);
                 }
@@ -552,8 +615,8 @@ function namecheap_RegisterDomain($params)
                 }
             }
         }
-        
-        
+
+
         // Client Details
         $registrant = array(
             'RegistrantFirstName'        => $params['firstname'],
@@ -565,11 +628,11 @@ function namecheap_RegisterDomain($params)
             'RegistrantStateProvince'    => $params['state'],
             'RegistrantPostalCode'       => $params['postcode'],
             'RegistrantCountry'          => $params['country'],
-            'RegistrantPhone'            => $params['phonenumber'],
-            'RegistrantEmailAddress'     => $params['email'],            
+            'RegistrantPhone'            => $params['fullphonenumber'],
+            'RegistrantEmailAddress'     => $params['email'],
         );
-        
-        
+
+
         // Billing/Admin/Tech Contact Details
         $registrantAdmin = array(
             'FirstName'        => $params['adminfirstname'],
@@ -581,19 +644,19 @@ function namecheap_RegisterDomain($params)
             'StateProvince'    => $params['adminstate'],
             'PostalCode'       => $params['adminpostcode'],
             'Country'          => $params['admincountry'],
-            'Phone'            => $params['adminphonenumber'],
-            'EmailAddress'     => $params['adminemail'],            
+            'Phone'            => $params['adminfullphonenumber'],
+            'EmailAddress'     => $params['adminemail'],
         );
-        
-        
+
+
         $aux = $tech = $admin = array();
         foreach ($registrantAdmin as $k => $v) {
             $admin["Admin" . $k] = $v;
             $tech["Tech" . $k] = $v;
             $aux["AuxBilling" . $k] = $v;
         }
-        
-        
+
+
         $request_params = array(
             'DomainName'  => $sld . '.' . $tld,
             'Years'       => $params['regperiod'],
@@ -608,14 +671,11 @@ function namecheap_RegisterDomain($params)
             $request_params['PromotionCode'] = $params['PromotionCode'];
         }
         // whois guard
-        $wg_ex = array("bz", "ca", "cn", "co.uk", "de", "eu", "in", "me.uk", "mobi", "nu", "org.uk", "us", "ws");
+        $wg_ex = array("bz", "ca", "cn", "co.uk", "de", "eu", "in", "me.uk", "mobi", "nu", "org.uk", "us", "ws", "uk");
         if ($params['idprotection'] && !in_array(strtolower($tld), $wg_ex)) {
             $request_params['AddFreeWhoisguard'] = "yes";
             $request_params['WGEnabled']         = "yes";
         }
-        //if ($params['AddFreePositiveSSL']) {
-        //    $request_params['AddFreePositiveSSL'] = "yes";
-        //}
         // extended attributes for some TLDs
         if ('eu' == strtolower($tld)) { // for .eu domains
             $request_params['EUAgreeWhoisPolicy']  = "YES";
@@ -658,12 +718,12 @@ function namecheap_RegisterDomain($params)
                     break;
             }
         } elseif ('ca' == strtolower($tld)) {
-            
+
             $request_params['CIRAWhoisDisplay']     = ("on" == $params['additionalfields']['WHOIS Opt-out']) ? "Private" : "Full";
             $request_params['CIRAAgreementVersion'] = "2.0";
             $request_params['CIRAAgreementValue']   = ("on" == $params['additionalfields']['CIRA Agreement']) ? "Y" : "";
             $request_params['CIRALanguage']         = "en";
-            
+
             if(!empty($params['additionalfields']['jobTitle'])){
                 $jobTitle = $params['additionalfields']['jobTitle'];
             }else if(!empty($params['additionalfields']['Job Title'])){
@@ -671,13 +731,13 @@ function namecheap_RegisterDomain($params)
             }else{
                 $jobTitle = 'Director';
             }
-            
+
             $request_params['RegistrantJobTitle'] = $jobTitle;
             $request_params['AdminJobTitle'] = $jobTitle;
             $request_params['TechJobTitle'] = $jobTitle;
             $request_params['AuxBillingJobTitle'] = $jobTitle;
 
-            
+
             /**
              * missing from WHMCS:
              * "INB" - Indian Band
@@ -735,7 +795,12 @@ function namecheap_RegisterDomain($params)
                     break;
             }
 
-        } elseif ('co.uk' == strtolower($tld) || 'org.uk' == strtolower($tld) || 'me.uk' == strtolower($tld)) {
+        } elseif (
+            'co.uk' == strtolower($tld)
+            || 'org.uk' == strtolower($tld)
+            || 'me.uk' == strtolower($tld)
+            || 'uk' == strtolower($tld)
+        ) {
             $key = strtoupper(str_replace('.', '', $tld));
 
             $request_params[$key . 'CompanyID']     = $params['additionalfields']['Company ID Number'];
@@ -777,6 +842,24 @@ function namecheap_RegisterDomain($params)
                 case 'Other foreign organizations':
                     $request_params[$key . 'LegalType'] = "FOTHER";
                     break;
+                case "UK Industrial/Provident Registered Company":
+                    $request_params[$key . 'LegalType'] = "IP";
+                    break;
+                case "UK School":
+                    $request_params[$key . 'LegalType'] = "SCH";
+                    break;
+                case "UK Government Body":
+                    $request_params[$key . 'LegalType'] = "GOV";
+                    break;
+                case "UK Corporation by Royal Charter":
+                    $request_params[$key . 'LegalType'] = "CRC";
+                    break;
+                case "UK Statutory Body":
+                    $request_params[$key . 'LegalType'] = "STAT";
+                    break;
+                case "Non-UK Individual":
+                    $request_params[$key . 'LegalType'] = "FIND";
+                    break;
                 case 'Individual':
                 default:
                     $request_params[$key . 'LegalType'] = "IND";
@@ -795,16 +878,16 @@ function namecheap_RegisterDomain($params)
         } elseif('com.sg' == strtolower($tld)){
             $request_params['COMSGRCBID'] = $params['additionalfields']['RCB Singapore ID'];
         } elseif ('com.au' == strtolower($tld) || 'net.au' == strtolower($tld) || 'org.au' == strtolower($tld)){
-            
-            $key_prefix = strtoupper(str_replace('.','',$tld));            
-            $request_params[$key_prefix.'RegistrantId'] = $params['additionalfields']['Registrant ID'];            
-            
+
+            $key_prefix = strtoupper(str_replace('.','',$tld));
+            $request_params[$key_prefix.'RegistrantId'] = $params['additionalfields']['Registrant ID'];
+
             if('Business Registration Number' == $params['additionalfields']['Registrant ID Type']){
                 $params['additionalfields']['Registrant ID Type'] = 'RBN';
             }
             $request_params[$key_prefix.'RegistrantIdType'] = $params['additionalfields']['Registrant ID Type'];
-            
-            
+
+
             if(!empty($params['additionalfields']['jobTitle'])){
                 $jobTitle = $params['additionalfields']['jobTitle'];
             }else if(!empty($params['additionalfields']['Job Title'])){
@@ -812,21 +895,21 @@ function namecheap_RegisterDomain($params)
             }else{
                 $jobTitle = 'Director';
             }
-            
-            
+
+
             $request_params['RegistrantJobTitle'] = $jobTitle;
             $request_params['AdminJobTitle'] = $jobTitle;
             $request_params['TechJobTitle'] = $jobTitle;
             $request_params['AuxBillingJobTitle'] = $jobTitle;
-            
-            
-        } elseif('es' == strtolower($tld)||'com.es' == strtolower($tld)||'nom.es' == strtolower($tld)||'org.es' ==  strtolower($tld)){            
-            
+
+
+        } elseif('es' == strtolower($tld)||'com.es' == strtolower($tld)||'nom.es' == strtolower($tld)||'org.es' ==  strtolower($tld)){
+
             $key_prefix = strtoupper(str_replace('.','',$tld));
-            $request_params[$key_prefix.'RegistrantId'] = $params['additionalfields']['ID Form Number'];            
-            
+            $request_params[$key_prefix.'RegistrantId'] = $params['additionalfields']['ID Form Number'];
+
         } elseif ('fr' == strtolower($tld)){
-            
+
             if(!empty($params['additionalfields']['Legal Type'])){
                 $request_params['FRLegalType'] = $params['additionalfields']['Legal Type'];
             }
@@ -860,30 +943,35 @@ function namecheap_RegisterDomain($params)
             if(!empty($params['additionalfields']['Journal Page'])){
                 $request_params['FRRegistrantJoPage'] = $params['additionalfields']['Journal Page'];
             }
-            
+
         }
-        
-        
-            $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
-            $response = $api->request("namecheap.domains.create", $request_params);
-            $result = $api->parseResponse($response);
-        
+
+
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
+        $response = $api->request("namecheap.domains.create", $request_params);
+        $result = $api->parseResponse($response);
+
         if (isset($result['DomainCreateResult']['warnings']['Warning'])) {
             $message = "Registering Domain warning<br />"
-                     . "-----------------------------------------------------------------------------------------<br />"
-                     . $result['DomainCreateResult']['warnings']['Warning']['@value'] . "<br />"
-                     . "-----------------------------------------------------------------------------------------<br />"
-                     . "Domain: " . $tld . "." . $sld . "<br />"
-                     . "Nameservers: " . implode(',', $nameservers);
+                . "-----------------------------------------------------------------------------------------<br />"
+                . $result['DomainCreateResult']['warnings']['Warning']['@value'] . "<br />"
+                . "-----------------------------------------------------------------------------------------<br />"
+                . "Domain: " . $tld . "." . $sld . "<br />"
+                . "Nameservers: " . implode(',', $nameservers);
 
-            sendadminnotification("system", "WHMCS Namecheap Domain Registrar Module", $message);
+            sendAdminNotification("system", "WHMCS Namecheap Domain Registrar Module", $message);
         }
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'RegisterDomain', array('command' => "namecheap.domains.create") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'RegisterDomain',
+            array('command' => "namecheap.domains.create") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -893,15 +981,15 @@ function namecheap_TransferDomain($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-    
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
@@ -912,22 +1000,27 @@ function namecheap_TransferDomain($params)
         if (!empty($params['PromotionCode'])) {
             $request_params['PromotionCode'] = $params['PromotionCode'];
         }
-        
+
         $wg_ex = array("bz", "ca", "cn", "co.uk", "de", "eu", "in", "me.uk", "mobi", "nu", "org.uk", "us", "ws");
         if ($params['idprotection'] && !in_array(strtolower($tld), $wg_ex)) {
             $request_params['AddFreeWhoisguard'] = "yes";
             $request_params['WGEnabled']         = "yes";
         }
-        
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.transfer.create", $request_params);
         $result = $api->parseResponse($response);
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'TransferDomain', array('command' => "namecheap.domains.transfer.create") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'TransferDomain',
+            array('command' => "namecheap.domains.transfer.create") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -937,15 +1030,15 @@ function namecheap_RenewDomain($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-
+    $response = '';
+    $result = $request_params = $values = array();
     $exCode = 0;
     try
     {
@@ -956,7 +1049,7 @@ function namecheap_RenewDomain($params)
         if (!empty($params['PromotionCode'])) {
             $request_params['PromotionCode'] = $params['PromotionCode'];
         }
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.renew", $request_params);
         $result = $api->parseResponse($response);
         $values['status'] = "Domain Renewed";
@@ -964,6 +1057,14 @@ function namecheap_RenewDomain($params)
     catch (Exception $e) {
         $exCode = $e->getCode();
         $values['error'] = "An error occurred: " . $e->getMessage();
+        logModuleCall(
+            'namecheap',
+            'RenewDomain',
+            array('command' => "namecheap.domains.renew") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     if ($exCode != 2020166) {
         return $values;
@@ -974,7 +1075,7 @@ function namecheap_RenewDomain($params)
         unset($values['error']);
         unset($request_params['Years']);
 
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.reactivate", $request_params);
         $result = $api->parseResponse($response);
         $values['status'] = "Domain Reactivated";
@@ -982,9 +1083,14 @@ function namecheap_RenewDomain($params)
     catch (Exception $e)
     {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'RenewDomain', array('command' => "namecheap.domains.reactivate") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'ReactivateDomain',
+            array('command' => "namecheap.domains.reactivate") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -994,21 +1100,21 @@ function namecheap_GetContactDetails($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
 
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
-    $sld = $oIDNA->getEncodedSld();    
-    
+    $sld = $oIDNA->getEncodedSld();
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
             'DomainName' => $sld . '.' . $tld
         );
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.getContacts", $request_params);
         $result = $api->parseResponse($response);
 
@@ -1035,9 +1141,14 @@ function namecheap_GetContactDetails($params)
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'GetContactDetails', array('command' => "namecheap.domains.getContacts") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'GetContactDetails',
+            array('command' => "namecheap.domains.getContacts") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -1047,15 +1158,15 @@ function namecheap_SaveContactDetails($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
@@ -1079,50 +1190,29 @@ function namecheap_SaveContactDetails($params)
                 $request_params[$k . 'EmailAddress']     = $v['Email'];
             }
         }
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.setContacts", $request_params);
         $result = $api->parseResponse($response);
 
         if (isset($result['DomainSetContactResult']['Warnings']['Warning'])) {
             $message = "Saving Contact Details warning<br />"
-                     . "-----------------------------------------------------------------------------------------<br />"
-                     . $result['DomainSetContactResult']['Warnings']['Warning']['@value'] . "<br /"
-                     . "-----------------------------------------------------------------------------------------<br />"
-                     . "Domain: " . $sld . "." . $tld;
-            sendadminnotification("system", "WHMCS Namecheap Domain Registrar Module", $message);
+                . "-----------------------------------------------------------------------------------------<br />"
+                . $result['DomainSetContactResult']['Warnings']['Warning']['@value'] . "<br /"
+                . "-----------------------------------------------------------------------------------------<br />"
+                . "Domain: " . $sld . "." . $tld;
+            sendAdminNotification("system", "WHMCS Namecheap Domain Registrar Module", $message);
         }
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'SaveContactDetails', array('command' => "namecheap.domains.setContacts") + $request_params, $response, $result, array());   
-        }
-    }
-    return $values;
-}
-
-function namecheap_GetEPPCode($params)
-{
-    // Assign all the global params required for the call to namecheap api
-    $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
-    $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
-    $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
-    $tld = $params['tld'];
-    $sld = $params['sld'];
-    
-    /*$oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
-    $sld = $oIDNA->getEncodedSld();    */
-
-    // Put your code to request the EPP code here - if the API returns it, pass back as below - otherwise return no value and it will assume code is emailed
-    //$values['eppcode'] = $eppcode;
-
-    // If error, return the error message in the value below
-    if (defined('CLIENTAREA') && CLIENTAREA == true) {
-        $values['error'] = "This function is not available. Please contact support to obtain EPP Code for this domain";
-    } else {
-        $values['error'] = "This function is not available via Namecheap API. "
-            . "You can obtain EPP Code through your Namecheap Domain Management page or by sending a request to support@namecheap.com";
+        logModuleCall(
+            'namecheap',
+            'SaveContactDetails',
+            array('command' => "namecheap.domains.setContacts") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -1132,15 +1222,15 @@ function namecheap_RegisterNameserver($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
@@ -1150,15 +1240,20 @@ function namecheap_RegisterNameserver($params)
             'IP' => $params['ipaddress']
         );
 
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.ns.create", $request_params);
         $result = $api->parseResponse($response);
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'RegisterNameserver', array('command' => "namecheap.domains.ns.create") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'RegisterNameserver',
+            array('command' => "namecheap.domains.ns.create") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -1168,15 +1263,15 @@ function namecheap_ModifyNameserver($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
@@ -1187,15 +1282,20 @@ function namecheap_ModifyNameserver($params)
             'OldIP' => $params['currentipaddress']
         );
 
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.ns.update", $request_params);
         $result = $api->parseResponse($response);
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'ModifyNameserver', array('command' => "namecheap.domains.ns.update") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'ModifyNameserver',
+            array('command' => "namecheap.domains.ns.update") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
@@ -1205,15 +1305,15 @@ function namecheap_DeleteNameserver($params)
     require_once dirname(__FILE__) . "/namecheapapi.php";
 
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
 
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
-    $sld = $oIDNA->getEncodedSld();    
-    
+    $sld = $oIDNA->getEncodedSld();
+    $response = '';
+    $result = $request_params = $values = array();
     try
     {
         $request_params = array(
@@ -1222,161 +1322,117 @@ function namecheap_DeleteNameserver($params)
             'Nameserver' => $params['nameserver']
         );
 
-        $api = new NamecheapRegistrarApi($username, $password, $testmode, $debugmode);
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
         $response = $api->request("namecheap.domains.ns.delete", $request_params);
         $result = $api->parseResponse($response);
     }
     catch (Exception $e) {
         $values['error'] = "An error occurred: " . $e->getMessage();
-        if (!$debugmode){
-            logModuleCall('namecheap', 'DeleteNameserver', array('command' => "namecheap.domains.ns.delete") + $request_params, $response, $result, array());   
-        }
+        logModuleCall(
+            'namecheap',
+            'DeleteNameserver',
+            array('command' => "namecheap.domains.ns.delete") + $request_params,
+            $response,
+            $result,
+            array($password)
+        );
     }
     return $values;
 }
 
 
 function namecheap_Sync($params){
-    
-    
+
     require_once dirname(__FILE__) . "/namecheapapi.php";
-    
+
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
-    
-    static $cache;
-    $values = array();
-    
-    if(empty($cache)){
-        
-        // load domains
-        $domains = array();
-        try {
-            $page = 1;
-            $pageSize = 100;
-            do
-            {
-                $request_params = array(
-                    'ListType' => "ALL",
-                    'Page'     => $page,
-                    'PageSize' => $pageSize,
-                    'SortBy'   => "NAME"
-                );
-                if (!empty($params['PromotionCode'])) {
-                    $request_params['PromotionCode'] = $params['PromotionCode'];
-                }
-                $api = new NamecheapRegistrarApi($username, $password, $testmode);
-                $response = $api->request("namecheap.domains.getList", $request_params);
-                $result = $api->parseResponse($response);
-                $domains += $api->parseResultSyncHelper($result['DomainGetListResult']['Domain'], "Name");
 
-                $totalItems = $result['Paging']['TotalItems'];
-                $pageSize = $result['Paging']['PageSize'];
-            } while (($pageSize * $page++) <= $totalItems);
-        } catch (Exception $e) {
-            $values['error'] = $e->getMessage();            
-            return $values;
-        }
-        
-        // and put the result into the cache
-        $cache['domains'] = $domains;
-        
-    }
-    
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-    
-    
-    $domain = $cache['domains']["$sld.$tld"];
-    if(empty($domain)){
+
+    $values = array();
+
+    try {
+        $request_params = array(
+            'ListType' => "ALL",
+            'Page'     => 1,
+            'PageSize' => 10,
+            'SortBy'   => "NAME",
+            'SearchTerm' => "$sld.$tld",
+        );
+        if (!empty($params['PromotionCode'])) {
+            $request_params['PromotionCode'] = $params['PromotionCode'];
+        }
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
+        $response = $api->request("namecheap.domains.getList", $request_params);
+        $result = $api->parseResponse($response);
+        $domains = $api->parseResultSyncHelper($result['DomainGetListResult']['Domain'], "Name");
+    } catch (Exception $e) {
+        $values['error'] = $e->getMessage();
+        return $values;
+    }
+
+    if (empty($domains["$sld.$tld"])) {
         $values['error'] = 'Domain not found';
         return $values;
     }
-    
-    // $values['active'] = true;
-    
-    $values['expired'] =  'true' === strtolower($domain['IsExpired']);    
-    $values['expirydate'] = date("Y-m-d", strtotime($domain['Expires']));
 
-    
+    $values['expired'] =  'true' === strtolower($domains["$sld.$tld"]['IsExpired']);
+    $values['expirydate'] = date("Y-m-d", strtotime($domains["$sld.$tld"]['Expires']));
+
     return $values;
-    
+
 }
 
 
 function namecheap_TransferSync($params) {
-    
+
     require_once dirname(__FILE__) . "/namecheapapi.php";
-    
+
     $testmode = (bool)$params['TestMode'];
-    $debugmode =(bool)$params['DebugMode'];
     $username = $testmode ? $params['SandboxUsername'] : $params['Username'];
     $password = $testmode ? $params['SandboxPassword'] : $params['Password'];
     $tld = $params['tld'];
     $sld = $params['sld'];
-    
-    
-    static $cache;
-    $values = array();
-    
-    
-    if(empty($cache)){
-        
-        $domains = array();
-        try {
-            $page = 1;
-            $pageSize = 100;
-            do
-            {
-                $request_params = array(
-                    //'ListType' => "COMPLETED",
-                    'ListType' => "ALL",
-                    'Page'     => $page,
-                    'PageSize' => $pageSize,
-                    'SortBy'   => "DOMAINNAME"
-                );
-                if (!empty($params['PromotionCode'])) {
-                    $request_params['PromotionCode'] = $params['PromotionCode'];
-                }
-                $api = new NamecheapRegistrarApi($username, $password, $testmode);
-                $response = $api->request("namecheap.domains.transfer.getList", $request_params);
-                $result = $api->parseResponse($response);
-                $domains += $api->parseResultSyncHelper($result['TransferGetListResult']['Transfer'], "DomainName");
-                $totalItems = $result['Paging']['TotalItems'];
-                $pageSize = $result['Paging']['PageSize'];
-            } while (($pageSize * $page++) <= $totalItems);
-        } catch (Exception $e) {
-            $values['error'] = $e->getMessage();
-            return $values;
-        }
-        
-        $cache['domains'] = $domains;
-        
-        
-    }
-    
-    
+
     $oIDNA = new NamecheapRegistrarIDNA($sld, $tld);
     $sld = $oIDNA->getEncodedSld();
-    
-    $domain = $cache['domains']["$sld.$tld"];
-    
-    if(empty($domain)){
+
+    try {
+        $request_params = array(
+            'ListType' => "ALL",
+            'Page'     => 1,
+            'PageSize' => 10,
+            'SortBy'   => "DOMAINNAME",
+            'SearchTerm' => "$sld.$tld",
+        );
+        if (!empty($params['PromotionCode'])) {
+            $request_params['PromotionCode'] = $params['PromotionCode'];
+        }
+        $api = new NamecheapRegistrarApi($username, $password, $testmode);
+        $response = $api->request("namecheap.domains.transfer.getList", $request_params);
+        $result = $api->parseResponse($response);
+        $domains = $api->parseResultSyncHelper($result['TransferGetListResult']['Transfer'], "DomainName");
+    } catch (Exception $e) {
+        $values['error'] = $e->getMessage();
+        return $values;
+    }
+
+    if (empty($domains["$sld.$tld"])){
         $values['error'] = 'Domain not found';
         return $values;
     }
-    
-    if('completed' ===  strtolower($domain['Status'])){
+
+    if ('completed' ===  strtolower($domains["$sld.$tld"]['Status'])) {
         $values['completed'] = true;
     }else{
-        $values['error'] = $domain['StatusDescription'];
+        $values['error'] = $domains["$sld.$tld"]['StatusDescription'];
     }
-    
+
     return $values;
-    
+
 }
