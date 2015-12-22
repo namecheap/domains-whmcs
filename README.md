@@ -17,8 +17,6 @@ Note: We have two variants of Namecheap.com WHMCS Registrar plugins for WHMCS ve
 - Added .asia Locality parameter to custom additionaldomainfields.php
  
 
-##### [ReleaseNotes](https://github.com/namecheap/domains-whmcs/wiki/Changelog)
-
 Namecheap.com WHMCS Registrar plug-in is an open-source plug-in that is distributed free of charge. It focuses on integrating Namecheap as a domain registrar at WHMCS.
 
 After the integration you can setup Namecheap as the default registrar for your customers and decide which services and TLDs to offer to your customers from within the WHMCS admin area.
