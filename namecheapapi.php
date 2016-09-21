@@ -239,11 +239,20 @@ if(!class_exists('NamecheapRegistrarApi')){
         }
 
 
-        public function parseResultSyncHelper($item, $domainNameKey = "DomainName")
+        public function parseResultSyncHelper($items, $domainNameKey = "DomainName")
         {
             $result = array();
-            $attr = $item['@attributes'];
-            $result[strtolower($attr[$domainNameKey])] = $attr;
+            $results = array();
+            if (isset($items['@attributes'])) {
+                $attr = $items['@attributes'];
+                $result[strtolower($attr[$domainNameKey])] = $attr;
+            } else {
+                foreach ($items as $item) {
+                    $attr = $item['@attributes'];
+                    $results[strtolower($attr[$domainNameKey])] = $attr;
+                }
+                $result = $results;
+            }
             return $result;
         }
 
