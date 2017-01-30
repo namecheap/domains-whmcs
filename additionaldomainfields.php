@@ -67,9 +67,6 @@ $additionaldomainfields[".com.au"][] = array("Name" => "Job Title", "LangVar"=>"
 $additionaldomainfields[".net.au"] = $additionaldomainfields[".com.au"];
 $additionaldomainfields[".org.au"] = $additionaldomainfields[".com.au"];
 
-$additionaldomainfields['.com.es'] = $additionaldomainfields[".es"];
-$additionaldomainfields['.nom.es'] = $additionaldomainfields[".es"];
-$additionaldomainfields['.org.es'] = $additionaldomainfields[".es"];
 
 
 // asia cc locality
@@ -84,4 +81,100 @@ if($bAddField){
         "Options" => "af,bd,ck,in,jp,kg,mh,nz,ps,sg,th,tv,aq,bt,cy,id,kz,la,fm,nu,pg,sb,tl,ae,am,bn,fj,ir,ki,lb,mn,nf,ph,lk,tk,uz,au,kh,ge,iq,kp,mo,mm,om,qa,sy,to,vu,az,cn,hm,il,kr,my,nr,pk,ws,tw,tr,vn,bh,cc,hk,jo,kw,mv,np,pw,sa,tj,tm,ye"
     );
 }
+
+
+
+// .es custom fields
+$additionaldomainfields['.es'] = array();
+
+$additionaldomainfields[".es"][] = array(
+        "Name" => "Registrant ID Type",
+        "LangVar" => "estldncregistrantidtype",
+        "Type" => "dropdown",
+        "Options" => implode(
+            ',',
+            array(
+                  'ALIENID|Resident Alien Id',
+                  'GENERICID|Generic Id',
+                  'VATID|VAT Id'
+            )
+        )
+    );
+$additionaldomainfields[".es"][] = array("Name" => "Registrant ID", "LangVar" => "estldncregistrantid", "Type" => "text");
+$additionaldomainfields[".es"][] = array(
+        "Name" => "Legal Form",
+        "LangVar" => "estldnclegalform",
+        "Type" => "dropdown",
+        "Options" => implode(
+            ',',
+            array(
+                    'Association|Association',
+                    'CentralGovernmentBody|Central Government Body',
+                    'CivilSociety|Civil Society',
+                    'CommunityofOwners|Community of Owners',
+                    'CommunityProperty|Community Property',
+                    'Consulate|Consulate',
+                    'Cooperative|Cooperative',
+                    'DesignationofOriginSupervisoryCouncil|Designation of Origin Supervisory Council',
+                    'EconomicInterestGroup|Economic Interest Group',
+                    'Embassy|Embassy',
+                    'EntityManagingNaturalAreas|Entity Managing Natural Areas',
+                    'FarmPartnership|Farm Partnership',
+                    'Foundation|Foundation',
+                    'GeneralandLimitedPartnership|General and Limited Partnership',
+                    'GeneralPartnership|General Partnership',
+                    'Individual|Individual',
+                    'LimitedCompany|Limited Company',
+                    'LocalAuthority|Local Authority',
+                    'LocalPublicEntity|Local Public Entity',
+                    'MutualInsuranceCompany|Mutual Insurance Company',
+                    'NationalPublicEntity|National Public Entity',
+                    'OrderorReligiousInstitution|Order or Religious Institution',
+                    'Others|Others',
+                    'PoliticalParty|Political Party',
+                    'ProfessionalAssociation|Professional Association',
+                    'PublicLawAssociation|Public Law Association',
+                    'PublicLimitedCompany|Public Limited Company',
+                    'RegionalGovernmentBody|Regional Government Body',
+                    'RegionalPublicEntity|Regional Public Entity',
+                    'SavingsBank|Savings Bank',
+                    'SpanishOffice|Spanish Office',
+                    'SportsAssociation|Sports Association',
+                    'SportsFederatio|Sports Federation',
+                    'TemporaryAllianceofEnterprises|Temporary Alliance of Enterprises',
+                    'TradeUnion|Trade Union',
+                    'WorkerownedCompany|Worker-owned Company',
+                    'WorkerownedLimitedCompany|Worker-owned Limited Company'
+            )
+        )
+    );
+
+
+$additionaldomainfields[".es"][] = array("Name" => "I accept the .ES terms and conditions", "LangVar" => "estldncaccept", "Type" => "tickbox", "Description" => "",);
+$additionaldomainfields[".es"][] = array("Name" => "Admin ID", "LangVar" => "estldncadminid", "Type" => "text");
+
+$additionaldomainfields[".es"][] = array(
+        "Name" => "Admin ID Type",
+        "LangVar" => "estldncadminidtype",
+        "Type" => "dropdown",
+        "Options" => implode(
+            ',',
+            array(
+                'GENERICID|Generic ID',
+                'NATIONALIDENTITY|National Identity',
+                'ALIENID|Resident Alien ID',
+            )
+        )
+    );
+
+
+
+$additionaldomainfields['.com.es'] = $additionaldomainfields[".es"];
+$additionaldomainfields['.nom.es'] = $additionaldomainfields[".es"];
+$additionaldomainfields['.org.es'] = $additionaldomainfields[".es"];
+
+
+// .sg Admin ID
+$additionaldomainfields[".sg"][] = array("Name" => "Admin ID", "LangVar" => "sgtldncadminid", "Type" => "text");
+$additionaldomainfields[".com.sg"] = $additionaldomainfields[".sg"];
 

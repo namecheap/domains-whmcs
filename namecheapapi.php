@@ -1,312 +1,392 @@
 <?php
 
+
 /**
  * NamecheapRegistrarApi
  */
 if(!class_exists('NamecheapRegistrarApi')){
-    class NamecheapRegistrarApi
+class NamecheapRegistrarApi
+{
+    public static $url = "https://api.namecheap.com/xml.response";
+    public static $testUrl = "https://api.sandbox.namecheap.com/xml.response";
+
+    private static $_phoneCountryCodes = array(
+        1, 7, 20, 27, 30, 31, 32, 33, 34, 36, 39, 40, 41, 43, 44, 45, 46, 47, 48, 49, 51, 52, 54, 55, 56, 57, 58, 60,
+        61, 62, 63, 64, 65, 66, 81, 82, 84, 86, 90, 91, 92, 93, 94, 95, 98, 212, 213, 216, 220, 221, 222, 224, 225, 226,
+        227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 248, 249,
+        250, 251, 252, 253, 254, 255, 256, 257, 258, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 290, 291, 297,
+        298, 299, 340, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 370, 371, 372, 373, 374, 375, 376, 377, 378,
+        380, 381, 382, 385, 386, 387, 389, 420, 421, 423, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 590, 591,
+        592, 593, 594, 595, 596, 597, 598, 599, 618, 670, 672, 673, 674, 675, 676, 677, 678, 679, 680, 681, 682, 683,
+        684, 686, 687, 688, 689, 690, 691, 692, 850, 852, 853, 855, 856, 872, 880, 886, 960, 961, 962, 963, 965, 966,
+        967, 968, 970, 971, 972, 973, 974, 975, 976, 977, 992, 993, 994, 995, 996, 998
+    );
+    
+    public static $_caStateProvince = array(
+        'US' => array(
+            "ArmedForcesAmericas(exceptCanada)"=>"AA",
+            "ArmedForcesAfrica"=>"AE",
+            "ArmedForcesCanada"=>"AE",
+            "ArmedForcesEurope"=>"AE",
+            "ArmedForcesMiddleEast"=>"AE",
+            "Alaska"=>"AK",
+            "Alabama"=>"AL",
+            "ArmedForcesPacific"=>"AP",
+            "AmericanSamoa"=>"AS",
+            "Arizona"=>"AZ",
+            "Arkansas"=>"AR",
+            "California"=>"CA",
+            "Colorado"=>"CO",
+            "Connecticut"=>"CT",
+            "Delaware"=>"DE",
+            "DistrictofColumbia"=>"DC",
+            "FederatedStatesofMicronesia"=>"FM",
+            "Florida"=>"FL",
+            "Georgia"=>"GA",
+            "Guam"=>"GU",
+            "Hawaii"=>"HI",
+            "Idaho"=>"ID",
+            "Illinois"=>"IL",
+            "Indiana"=>"IN",
+            "Iowa"=>"IA",
+            "Kansas"=>"KS",
+            "Kentucky"=>"KY",
+            "Louisiana"=>"LA",
+            "Maine"=>"ME",
+            "MarshallIslands"=>"MH",
+            "Maryland"=>"MD",
+            "Massachusetts"=>"MA",
+            "Michigan"=>"MI",
+            "Minnesota"=>"MN",
+            "Mississippi"=>"MS",
+            "Missouri"=>"MO",
+            "Montana"=>"MT",
+            "Nebraska"=>"NE",
+            "Nevada"=>"NV",
+            "NewHampshire"=>"NH",
+            "NewJersey"=>"NJ",
+            "NewMexico"=>"NM",
+            "NewYork"=>"NY",
+            "NorthCarolina"=>"NC",
+            "NorthDakota"=>"ND",
+            "NorthernMarianaIslands"=>"MP",
+            "Ohio"=>"OH",
+            "Oklahoma"=>"OK",
+            "Oregon"=>"OR",
+            "Palau"=>"PW",
+            "Pennsylvania"=>"PA",
+            "PuertoRico"=>"PR",
+            "RhodeIsland"=>"RI",
+            "SouthCarolina"=>"SC",
+            "SouthDakota"=>"SD",
+            "Tennessee"=>"TN",
+            "Texas"=>"TX",
+            "Utah"=>"UT",
+            "Vermont"=>"VT",
+            "VirginIslands"=>"VI",
+            "Virginia"=>"VA",
+            "Washington"=>"WA",
+            "WestVirginia"=>"WV",
+            "Wisconsin"=>"WI",
+            "Wyoming"=>"WY",
+        ),
+        'CA' => array(
+            "Alberta" => "AB",
+            "BritishColumbia" => "BC",
+            "Manitoba" => "MB",
+            "NewBrunswick" => "NB",
+            "NewfoundlandandLabrador" => "NL",
+            "NorthwestTerritories" => "NT",
+            "NovaScotia" => "NS",
+            "Nunavut" => "NU",
+            "Ontario" => "ON",
+            "PrinceEdwardIsland" => "PE",
+            "Quebec" => "QC",
+            "Saskatchewan" => "SK",
+            "Yukon" => "YK"
+        ),
+    );
+    
+    private $_apiUser;
+    private $_apiKey;
+
+    private $_testMode = true;
+    private $_debugMode = false;
+
+    private $_requestUrl;
+    private $_requestParams;
+    private $_response;
+
+    public function  __construct($apiUser, $apiKey, $testMode = true, $debugMode = false)
     {
-        public static $url = "https://api.namecheap.com/xml.response";
-        public static $testUrl = "https://api.sandbox.namecheap.com/xml.response";
+        $this->_apiUser = $apiUser;
+        $this->_apiKey  = $apiKey;
 
-        private static $_phoneCountryCodes = array(
-            1, 7, 20, 27, 30, 31, 32, 33, 34, 36, 39, 40, 41, 43, 44, 45, 46, 47, 48, 49, 51, 52, 54, 55, 56, 57, 58, 60,
-            61, 62, 63, 64, 65, 66, 81, 82, 84, 86, 90, 91, 92, 93, 94, 95, 98, 212, 213, 216, 220, 221, 222, 224, 225, 226,
-            227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 248, 249,
-            250, 251, 252, 253, 254, 255, 256, 257, 258, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 290, 291, 297,
-            298, 299, 340, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 370, 371, 372, 373, 374, 375, 376, 377, 378,
-            380, 381, 382, 385, 386, 387, 389, 420, 421, 423, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 590, 591,
-            592, 593, 594, 595, 596, 597, 598, 599, 618, 670, 672, 673, 674, 675, 676, 677, 678, 679, 680, 681, 682, 683,
-            684, 686, 687, 688, 689, 690, 691, 692, 850, 852, 853, 855, 856, 872, 880, 886, 960, 961, 962, 963, 965, 966,
-            967, 968, 970, 971, 972, 973, 974, 975, 976, 977, 992, 993, 994, 995, 996, 998
-        );
-
-        private $_apiUser;
-        private $_apiKey;
-
-        private $_testMode = true;
-
-        private $_requestUrl;
-        private $_requestParams;
-        private $_response;
-
-        public function  __construct($apiUser, $apiKey, $testMode = true)
-        {
-            $this->_apiUser = $apiUser;
-            $this->_apiKey  = $apiKey;
-
-            $this->setTestMode($testMode);
-        }
-
-        /**
-         * getLastUrl
-         * @return string
-         */
-        public function getLastUrl() {
-            return $this->_requestUrl;
-        }
-
-        /**
-         * getLastParams
-         * @return string
-         */
-        public function getLastParams() {
-            return $this->_requestParams;
-        }
-
-        /**
-         * getLastResponse
-         * @return string
-         */
-        public function getLastResponse() {
-            return $this->_response;
-        }
-
-        /**
-         * Parse the response into an array.
-         *
-         * @throws NamecheapRegistrarApiException
-         *
-         * @param string $response
-         *
-         * @return array
-         */
-        public function parseResponse($response)
-        {
-            if (false === ($xml = simplexml_load_string($response))) {
-                throw new NamecheapRegistrarApiException("Unable to parse response");
-            }
-            $result = $this->_xml2Array($xml);
-            if ("ERROR" == $result['@attributes']['Status']) {
-                $errors = isset($result['Errors']['Error'][0]) ? $result['Errors']['Error'] : array($result['Errors']['Error']);
-
-
-                $msg = '';
-                //$err = $errors[count($errors) - 1];
-
-                foreach ($errors as $err){
-                    $err_msg = sprintf("[%s] %s", $err['@attributes']['Number'], $err['@value']) ;
-                    $msg .= $err_msg;
-                }
-
-                //throw new NamecheapRegistrarApiException($err_msg, $err['@attributes']['Number']);
-                throw new NamecheapRegistrarApiException($msg, $err['@attributes']['Number']);
-            }
-            return $result['CommandResponse'];
-        }
-
-        /**
-         * Send the request to the API
-         *
-         * @throws NamecheapRegistrarApiException
-         *
-         * @param string $command
-         * @param array $params
-         *
-         * @return string
-         */
-        public function request($command, array $params)
-        {
-            $this->_requestUrl = $this->_getApiUrl($command, $params);
-            $this->_requestParams = $this->_getApiParams($command, $params);
-
-            $curl_error = false;
-            if (extension_loaded("curl") && ($ch = curl_init()) !== false)
-            {
-                curl_setopt($ch, CURLOPT_URL, $this->_requestUrl);
-                curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
-                // we set peer verification of namecheap server to false - else the process will fail
-                // if the host server doesn't have an accurate ca bundle.
-                // can turn this on, when you place an up to date ca bundle at your host server.
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-                curl_setopt($ch, CURLOPT_HEADER, 0);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-                $this->_response = curl_exec($ch);
-                $curl_error = curl_error($ch);
-
-                curl_close($ch);
-            }
-
-            // if we didn't get a response from curl, or curl had encountered an error, do it through fsockopen.
-            if (!$this->_response || $curl_error) {
-                $this->_response = @file_get_contents($this->_requestUrl);
-            }
-
-
-            if (function_exists('logModuleCall'))
-            {
-                $logRequestParams = $this->_requestParams;
-                logModuleCall(
-                    'namecheap',
-                    $command,
-                    $logRequestParams,
-                    $this->_response . "\n" . $curl_error,
-                    $this->_response . "\n" . $curl_error,
-                    array($logRequestParams['ApiKey'])
-                );
-            }
-
-            if (!$this->_response) {
-                throw new NamecheapRegistrarApiException($curl_error ? $curl_error : "Unable to request data from " . $this->_requestUrl);
-            }
-
-            return $this->_response;
-        }
-
-        /**
-         * setTestMode
-         * @param boolean $flag
-         */
-        public function setTestMode($flag)
-        {
-            $this->_testMode = (bool)$flag;
-        }
-
-        // private methods
-
-        /**
-         * formatPhone
-         * @throws Exception
-         *
-         * @param $phone
-         *
-         * @return mixed
-         */
-        private function _formatPhone($phone)
-        {
-            /**
-             * Namecheap API phone format requirement is +NNN.NNNNNNNNNN
-             */
-
-            // strip all non-digit characters
-            $phone = preg_replace('/[^\d]/', '', $phone);
-
-            // check country code
-            $phone_code = "";
-            foreach (self::$_phoneCountryCodes as $v) {
-                if (preg_match("/^$v\d+$/", $phone)) {
-                    $phone_code = $v;
-                    break;
-                }
-            }
-            if (!$phone_code) {
-                throw new Exception("Invalid phone number or phone country code: $phone");
-            }
-            // add '+' and dot to result phone number
-            $phone = preg_replace("/^$phone_code/", "+{$phone_code}.", $phone);
-            return $phone;
-        }
-
-
-        /**
-         * _getApiParams
-         * @param string $command
-         * @param array $params
-         * @return array
-         */
-        private function _getApiParams($command, array $params)
-        {
-
-            $params['Command'] = $command;
-            $params['ApiUser'] = $this->_apiUser;
-            $params['ApiKey']  = $this->_apiKey;
-
-            if (!array_key_exists('UserName', $params) || !strlen($params['UserName'])) {
-                $params['UserName'] = $params['ApiUser'];
-            }
-            if (!array_key_exists('ClientIp', $params)) {
-                $params['ClientIp'] = $this->_getClientIp();
-            }
-
-
-            // format phone/fax fields
-            foreach ($params as $k => &$v) {
-                if (preg_match('/(Phone|Fax)/i', $k)) {
-                    $v = trim($v);
-                    if(!empty($v)){
-                        $v = $this->_formatPhone($v);
-                    }
-                }
-            }
-
-            // force EPPCode to be base64 encoded
-            if (array_key_exists('EPPCode', $params)) {
-                $params['EPPCode'] = htmlspecialchars_decode($params['EPPCode'], ENT_QUOTES);
-                $params['EPPCode'] = "base64:" . base64_encode($params['EPPCode']);
-            }
-            return $params;
-        }
-
-
-        public function parseResultSyncHelper($item, $domainNameKey = "DomainName")
-        {
-            $result = array();
-            $attr = $item['@attributes'];
-            $result[strtolower($attr[$domainNameKey])] = $attr;
-            return $result;
-        }
-
-
-        /**
-         * _getApiUrl
-         * @param string $command
-         * @param array $params
-         * @return string
-         */
-        private function _getApiUrl($command, array $params)
-        {
-            return ($this->_testMode ? self::$testUrl : self::$url) . '?' . http_build_query($this->_getApiParams($command, $params),'','&');
-        }
-
-        /**
-         * _getClientIp
-         * @return string
-         */
-        private function _getClientIp()
-        {
-            $clientip = $_SERVER['REMOTE_ADDR'];
-            return $clientip ? $clientip : "10.11.12.13";
-        }
-
-        /**
-         * _xml2Array
-         * @throws NamecheapRegistrarApiException
-         *
-         * @param $xml
-         *
-         * @return array|string
-         */
-        private function _xml2Array($xml)
-        {
-            if (!($xml instanceof SimpleXMLElement)) {
-                throw new NamecheapRegistrarApiException("Not a SimpleXMLElement object");
-            }
-            $result = array();
-            foreach ($xml->attributes() as $attrName => $attr) {
-                $result['@attributes'][$attrName] = (string)$attr;
-            }
-            foreach ($xml->children() as $childName => $child) {
-                if (array_key_exists($childName, $result)) {
-                    if (!is_array($result[$childName]) || !isset($result[$childName][1])) {
-                        $result[$childName] = array($result[$childName]);
-                    }
-                    $result[$childName][] = $this->_xml2Array($child);
-                } else {
-                    $result[$childName] = $this->_xml2Array($child);
-                }
-            }
-            $value = trim((string)$xml);
-            if (array_keys($result)) {
-                if ($value) {
-                    $result['@value'] = $value;
-                }
-            } else {
-                $result = $value;
-            }
-            return $result;
-        }
+        $this->setTestMode($testMode);
+        $this->setDebugMode($debugMode);
     }
+
+    /**
+     * getLastUrl
+     * @return string
+     */
+    public function getLastUrl() {
+        return $this->_requestUrl;
+    }
+
+    /**
+     * getLastParams
+     * @return string
+     */
+    public function getLastParams() {
+        return $this->_requestParams;
+    }
+
+    /**
+     * getLastResponse
+     * @return string
+     */
+    public function getLastResponse() {
+        return $this->_response;
+    }
+
+    /**
+     * parseResponse
+     * @param string $response
+     * @return array
+     */
+    public function parseResponse($response)
+    {
+        if (false === ($xml = simplexml_load_string($response))) {
+            throw new NamecheapRegistrarApiException("Unable to parse response");
+        }
+        $result = $this->_xml2Array($xml);
+        if ("ERROR" == $result['@attributes']['Status']) {
+            $errors = isset($result['Errors']['Error'][0]) ? $result['Errors']['Error'] : array($result['Errors']['Error']);
+
+            
+            $msg = '';
+            //$err = $errors[count($errors) - 1];
+            
+            foreach ($errors as $err){
+                $err_msg = sprintf("[%s] %s", $err['@attributes']['Number'], $err['@value']) ;
+                $msg .= $err_msg;
+            }
+            
+            //throw new NamecheapRegistrarApiException($err_msg, $err['@attributes']['Number']);
+            throw new NamecheapRegistrarApiException($msg, $err['@attributes']['Number']);
+        }
+        return $result['CommandResponse'];
+    }
+
+    /**
+     * request
+     * @param string $command
+     * @param array $params
+     * @return string
+     */
+    public function request($command, array $params)
+    {
+        $this->_requestUrl = $this->_getApiUrl($command, $params);
+        $this->_requestParams = $this->_getApiParams($command, $params);
+
+        $curl_error = false;
+        if (extension_loaded("curl") && ($ch = curl_init()) !== false)
+        {
+            curl_setopt($ch, CURLOPT_URL, $this->_requestUrl);
+            curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
+            // we set peer verification of namecheap server to false - else the process will fail
+            // if the host server doesn't have an accurate ca bundle.
+            // can turn this on, when you place an up to date ca bundle at your host server.
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_setopt($ch, CURLOPT_HEADER, 0);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+            $this->_response = curl_exec($ch);
+            $curl_error = curl_error($ch);
+
+            curl_close($ch);
+        }
+        
+        // if we didn't get a response from curl, or curl had encountered an error, do it through fsockopen.
+        if (!$this->_response || $curl_error) {
+            $this->_response = @file_get_contents($this->_requestUrl);
+        }
+        
+        
+        // debug mode
+        if ($this->_debugMode){
+            if(function_exists('logModuleCall')){
+                $logRequestParams = $this->_requestParams;
+                $logRequestParams['ApiKey'] = '***';
+                //$logRequestParams['url'] = $this->_requestUrl;
+                logModuleCall('namecheap', $command, $logRequestParams, $this->_response, null, array());
+            }
+        }
+        //
+        
+        if (!$this->_response) {
+            throw new NamecheapRegistrarApiException($curl_error ? $curl_error : "Unable to request data from " . $this->_requestUrl);
+        }
+        
+        return $this->_response;
+    }
+
+    /**
+     * setTestMode
+     * @param boolean $flag
+     */
+    public function setTestMode($flag)
+    {
+        $this->_testMode = (bool)$flag;
+    }
+    
+    public function setDebugMode($flag)
+    {
+        $this->_debugMode = (bool)$flag;
+    }
+
+    // private methods
+
+    /**
+     * formatPhone
+     * @param string $phone
+     * @return string
+     */
+    private function _formatPhone($phone)
+    {
+        /**
+         * Namecheap API phone format requirement is +NNN.NNNNNNNNNN
+         */
+
+        // strip all non-digit characters
+        $phone = preg_replace('/[^\d]/', '', $phone);
+
+        // check country code
+        $phone_code = "";
+        foreach (self::$_phoneCountryCodes as $v) {
+            if (preg_match("/^$v\d+$/", $phone)) {
+                $phone_code = $v;
+                break;
+            }
+        }
+        if (!$phone_code) {
+            throw new Exception("Invalid phone number or phone country code: $phone");
+        }
+        // add '+' and dot to result phone number
+        $phone = preg_replace("/^$phone_code/", "+{$phone_code}.", $phone);
+        return $phone;
+    }
+    
+
+    /**
+     * _getApiParams
+     * @param string $command
+     * @param array $params
+     * @return array
+     */
+    private function _getApiParams($command, array $params)
+    {
+        
+        $params['Command'] = $command;
+        $params['ApiUser'] = $this->_apiUser;
+        $params['ApiKey']  = $this->_apiKey;
+
+        if (!array_key_exists('UserName', $params) || !strlen($params['UserName'])) {
+            $params['UserName'] = $params['ApiUser'];
+        }
+        if (!array_key_exists('ClientIp', $params)) {
+            $params['ClientIp'] = $this->_getClientIp();
+        }
+        
+        
+        // format phone/fax fields
+        foreach ($params as $k => &$v) {
+            if (preg_match('/(Phone|Fax)/i', $k)) {
+                $v = trim($v);
+                if(!empty($v)){
+                    $v = $this->_formatPhone($v);
+                }
+            }
+        }
+
+        // force EPPCode to be base64 encoded
+        if (array_key_exists('EPPCode', $params)) {
+            $params['EPPCode'] = htmlspecialchars_decode($params['EPPCode'], ENT_QUOTES);            
+            $params['EPPCode'] = "base64:" . base64_encode($params['EPPCode']);
+        }
+        return $params;
+    }
+    
+    
+    public function parseResultSyncHelper($items, $domainNameKey = "DomainName")
+    {
+        $result = array();
+        foreach ($items as $t)
+        {
+            $attr = $t['@attributes'];
+            $result[strtolower($attr[$domainNameKey])] = $attr;
+        }
+        return $result;
+    }
+            
+    
+    /**
+     * _getApiUrl
+     * @param string $command
+     * @param array $params
+     * @return string
+     */
+    private function _getApiUrl($command, array $params)
+    {
+        return ($this->_testMode ? self::$testUrl : self::$url) . '?' . http_build_query($this->_getApiParams($command, $params),'','&');
+    }
+
+    /**
+     * _getClientIp
+     * @return string
+     */
+    private function _getClientIp()
+    {
+        $clientip = $_SERVER['REMOTE_ADDR'];
+        return $clientip ? $clientip : "10.11.12.13";
+    }
+
+    /**
+     * _xml2Array
+     * @param string $xml
+     * @return array
+     */
+    private function _xml2Array($xml)
+    {
+        if (!($xml instanceof SimpleXMLElement)) {
+            throw new NamecheapRegistrarApiException("Not a SimpleXMLElement object");
+        }
+        $result = array();
+        foreach ($xml->attributes() as $attrName => $attr) {
+            $result['@attributes'][$attrName] = (string)$attr;
+        }
+        foreach ($xml->children() as $childName => $child) {
+            if (array_key_exists($childName, $result)) {
+                if (!is_array($result[$childName]) || !isset($result[$childName][1])) {
+                    $result[$childName] = array($result[$childName]);
+                }
+                $result[$childName][] = $this->_xml2Array($child);
+            } else {
+                $result[$childName] = $this->_xml2Array($child);
+            }
+        }
+        $value = trim((string)$xml);
+        if (array_keys($result)) {
+            if ($value) {
+                $result['@value'] = $value;
+            }
+        } else {
+            $result = $value;
+        }
+        return $result;
+    }
+}
 }
 
 /**
@@ -2701,7 +2781,7 @@ if (!class_exists('Net_IDNA2')) {
             // populate mbstring overloading cache if not set
             if (self::$_mb_string_overload === null) {
                 self::$_mb_string_overload = (extension_loaded('mbstring')
-                    && (ini_get('mbstring.func_overload') & 0x02) === 0x02);
+                        && (ini_get('mbstring.func_overload') & 0x02) === 0x02);
             }
         }
 
@@ -2719,10 +2799,8 @@ if (!class_exists('Net_IDNA2')) {
          *             on failures; false: loose mode, ideal for "wildlife" applications
          *             by silently ignoring errors and returning the original input instead]
          *
-         * @throws InvalidArgumentException
-         *
-         * @param string|array  $option Parameter to set (string: single parameter; array of Parameter => Value pairs)
-         * @param boolean $value  Value to use (if parameter 1 is a string)
+         * @param mixed  $option Parameter to set (string: single parameter; array of Parameter => Value pairs)
+         * @param string $value  Value to use (if parameter 1 is a string)
          *
          * @return boolean       true on success, false otherwise
          * @access public
@@ -2776,12 +2854,12 @@ if (!class_exists('Net_IDNA2')) {
          * Encode a given UTF-8 domain name.
          *
          * @param string $decoded           Domain name (UTF-8 or UCS-4)
-         * @param boolean $one_time_encoding Desired input encoding, see {@link set_parameter}
+         * @param string $one_time_encoding Desired input encoding, see {@link set_parameter}
          *                                  If not given will use default-encoding
          *
          * @return string Encoded Domain name (ACE string)
          * @return mixed  processed string
-         * @throws InvalidArgumentException
+         * @throws Exception
          * @access public
          */
         public function encode($decoded, $one_time_encoding = false) {
@@ -2865,10 +2943,10 @@ if (!class_exists('Net_IDNA2')) {
          * Decode a given ACE domain name.
          *
          * @param string $input             Domain name (ACE string)
-         * @param bool $one_time_encoding Desired output encoding, see {@link set_parameter}
+         * @param string $one_time_encoding Desired output encoding, see {@link set_parameter}
          *
-         * @return array|string                   Decoded Domain name (UTF-8 or UCS-4)
-         * @throws InvalidArgumentException
+         * @return string                   Decoded Domain name (UTF-8 or UCS-4)
+         * @throws Exception
          * @access public
          */
         public function decode($input, $one_time_encoding = false) {
@@ -3042,9 +3120,9 @@ if (!class_exists('Net_IDNA2')) {
                 $test = $decoded[$i];
                 // Will match [0-9a-zA-Z-]
                 if ((0x2F < $test && $test < 0x40)
-                    || (0x40 < $test && $test < 0x5B)
-                    || (0x60 < $test && $test <= 0x7B)
-                    || (0x2D == $test)
+                        || (0x40 < $test && $test < 0x5B)
+                        || (0x60 < $test && $test <= 0x7B)
+                        || (0x2D == $test)
                 ) {
                     $encoded .= chr($decoded[$i]);
                     $codecount++;
@@ -3089,8 +3167,8 @@ if (!class_exists('Net_IDNA2')) {
                     } else if ($decoded[$i] == $cur_code) {
                         for ($q = $delta, $k = $this->_base; 1; $k += $this->_base) {
                             $t = ($k <= $bias) ?
-                                $this->_tmin :
-                                (($k >= $bias + $this->_tmax) ? $this->_tmax : $k - $bias);
+                                    $this->_tmin :
+                                    (($k >= $bias + $this->_tmax) ? $this->_tmax : $k - $bias);
 
                             if ($q < $t) {
                                 break;
@@ -3163,8 +3241,8 @@ if (!class_exists('Net_IDNA2')) {
                     $idx += $digit * $w;
 
                     $t = ($k <= $bias) ?
-                        $this->_tmin :
-                        (($k >= $bias + $this->_tmax) ? $this->_tmax : ($k - $bias));
+                            $this->_tmin :
+                            (($k >= $bias + $this->_tmax) ? $this->_tmax : ($k - $bias));
 
                     if ($digit < $t) {
                         break;
@@ -3243,10 +3321,9 @@ if (!class_exists('Net_IDNA2')) {
          * @param array $input Unicode Characters
          *
          * @return string      Unicode Characters, Nameprep'd
-         * @throws Net_IDNA2_Exception_Nameprep
+         * @throws Exception
          * @access private
          */
-
         private function _nameprep($input) {
             $output = array();
 
@@ -3641,33 +3718,33 @@ if (!class_exists('Net_IDNA2')) {
                 } else if ($v < 1 << 11) {
                     // 2 bytes
                     $output .= chr(192 + ($v >> 6))
-                        . chr(128 + ($v & 63));
+                            . chr(128 + ($v & 63));
                 } else if ($v < 1 << 16) {
                     // 3 bytes
                     $output .= chr(224 + ($v >> 12))
-                        . chr(128 + (($v >> 6) & 63))
-                        . chr(128 + ($v & 63));
+                            . chr(128 + (($v >> 6) & 63))
+                            . chr(128 + ($v & 63));
                 } else if ($v < 1 << 21) {
                     // 4 bytes
                     $output .= chr(240 + ($v >> 18))
-                        . chr(128 + (($v >> 12) & 63))
-                        . chr(128 + (($v >> 6) & 63))
-                        . chr(128 + ($v & 63));
+                            . chr(128 + (($v >> 12) & 63))
+                            . chr(128 + (($v >> 6) & 63))
+                            . chr(128 + ($v & 63));
                 } else if ($v < 1 << 26) {
                     // 5 bytes
                     $output .= chr(248 + ($v >> 24))
-                        . chr(128 + (($v >> 18) & 63))
-                        . chr(128 + (($v >> 12) & 63))
-                        . chr(128 + (($v >> 6) & 63))
-                        . chr(128 + ($v & 63));
+                            . chr(128 + (($v >> 18) & 63))
+                            . chr(128 + (($v >> 12) & 63))
+                            . chr(128 + (($v >> 6) & 63))
+                            . chr(128 + ($v & 63));
                 } else if ($v < 1 << 31) {
                     // 6 bytes
                     $output .= chr(252 + ($v >> 30))
-                        . chr(128 + (($v >> 24) & 63))
-                        . chr(128 + (($v >> 18) & 63))
-                        . chr(128 + (($v >> 12) & 63))
-                        . chr(128 + (($v >> 6) & 63))
-                        . chr(128 + ($v & 63));
+                            . chr(128 + (($v >> 24) & 63))
+                            . chr(128 + (($v >> 18) & 63))
+                            . chr(128 + (($v >> 12) & 63))
+                            . chr(128 + (($v >> 6) & 63))
+                            . chr(128 + ($v & 63));
                 } else {
                     throw new UnexpectedValueException('Conversion from UCS-4 to UTF-8 failed: malformed input');
                 }
@@ -3839,3 +3916,4 @@ if (!class_exists('Net_IDNA2')) {
         // }}}
     }
 }
+
