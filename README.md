@@ -50,14 +50,14 @@ To configure WHMCS for use with Namecheap, perform the following steps:
 ![Test Mode](http://files.namecheap.com/assets/img/github/testmode.png "Test Mode")
 
 5. Optional settings:
-- It’s recommended to enable DebugMode that allows saving logs of API calls. If this option is disabled, the module will be logging only errors returned by the module. API logs can be checked under Utilities > Logs > Module Log.
+- It’s recommended to enable **DebugMode** that allows saving logs of API calls. If this option is disabled, the module will be logging only errors returned by the module. API logs can be checked under **Utilities > Logs > Module Log**.
 
 - If you have a promotional coupon code from Namecheap, you can enter it into the PromotionCode field. The discounted price will be automatically applied on your orders according to the coupon pricing.
 
-6. Click Save Changes.
+6. Click **Save Changes**.
 
 That’s it. The Namecheap module is now ready for use and will function just like any other built-in WHMCS registrar module.
-You can now make Namecheap the automatic registrar, configure TLDs and services for all of your customers. To perform these actions, click on the Setup menu, select Products/Services and click on Domain Pricing in your WHMCS admin panel:
+You can now make Namecheap the automatic registrar, configure TLDs and services for all of your customers. To perform these actions, click on the **Setup** menu, select **Products/Services** and click on **Domain Pricing** in your WHMCS admin panel:
 ![Domain Pricing](http://files.namecheap.com/assets/img/github/domainpricing.png "Domain Pricing")
 
 You can refer to [http://docs.whmcs.com/Domains_Configuration](http://docs.whmcs.com/Domains_Configuration) for more information.
