@@ -41,13 +41,13 @@ To configure WHMCS for use with Namecheap, perform the following steps:
 1. Log into your **WHMCS admin** panel
 
 2. Click on the **Setup** menu, select **Products/Services** and click on **Domain Registrars**:
-![Domain Registrars](https://files.namecheap.com/assets/img/github/domainregistrars.png "Domain Registrars")
+![Domain Registrars](http://files.namecheap.com/assets/img/github/domainregistrars.png "Domain Registrars")
 
 3. Click on **Activate** next to Namecheap in the list:
-![Activate](https://files.namecheap.com/assets/img/github/activate.png "Activate")
+![Activate](http://files.namecheap.com/assets/img/github/activate.png "Activate")
 
 4. Enter your API credentials. If you wish to try out the module in Sandbox, enter your Sandbox username and Sandbox API key only into the corresponding fields and check the **“Test Mode”** box:
-![Test Mode](https://files.namecheap.com/assets/img/github/testmode.png "Test Mode")
+![Test Mode](http://files.namecheap.com/assets/img/github/testmode.png "Test Mode")
 
 5. Optional settings:
 - It’s recommended to enable DebugMode that allows saving logs of API calls. If this option is disabled, the module will be logging only errors returned by the module. API logs can be checked under Utilities > Logs > Module Log.
@@ -58,7 +58,7 @@ To configure WHMCS for use with Namecheap, perform the following steps:
 
 That’s it. The Namecheap module is now ready for use and will function just like any other built-in WHMCS registrar module.
 You can now make Namecheap the automatic registrar, configure TLDs and services for all of your customers. To perform these actions, click on the Setup menu, select Products/Services and click on Domain Pricing in your WHMCS admin panel:
-![Domain Pricing](https://files.namecheap.com/assets/img/github/domainpricing.png "Domain Pricing")
+![Domain Pricing](http://files.namecheap.com/assets/img/github/domainpricing.png "Domain Pricing")
 
 You can refer to [http://docs.whmcs.com/Domains_Configuration](http://docs.whmcs.com/Domains_Configuration) for more information.
 
