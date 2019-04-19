@@ -66,3 +66,6 @@ To add additional fields required for our module (language for IDN domains, Job 
 ##### Support
 
 Please [submit a ticket](https://support.namecheap.com/index.php?/Tickets/Submit) to report bugs, provide feedback or receive assistance.
+
+Please keep in mind that we do support the Version 1.2.11 only so far. Despite the fact it is not the latest version of the Namecheap registrar module, it is stable and fully compatible with new WHMCS versions.
+
