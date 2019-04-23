@@ -56,11 +56,11 @@ That’s it. The Namecheap plug-in is now ready for use and will function just l
 
 You can refer to http://docs.whmcs.com/Domains_Configuration for more information.
 
-To add additional fields required for our module (language for IDN domains, Job Title field for .CA and .AU domains, extended attributed for .FR domains) you will need to connect our own additionaldomainfields.php file. To do this, please add the following strings in the end of includes/additionaldomainfields.php file:
+If you experience issues with adding additional fields required for our module (e.g. language for IDN domains, Job Title field for .CA and .AU domains, extended attributed for .FR domains), you will need to connect our own additionaldomainfields.php file. To do this, please create a new file named [additionalfields.php](https://docs.whmcs.com/Additional_Domain_Fields#How_do_I_customise_the_fields_that_are_displayed.3F) within the /resources/domains/ directory and add the following strings in the end of it:
 
- `if (file_exists(dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php")) {
-  include dirname(FILE)."/../modules/registrars/namecheap/additionaldomainfields.php"; 
- }`
+ ` if (file_exists( __DIR__."/../../modules/registrars/namecheap/additionaldomainfields.php")) 
+       { include __DIR__."/../../modules/registrars/namecheap/additionaldomainfields.php"; }
+`
 
 
 ##### Support
