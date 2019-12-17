@@ -1,7 +1,7 @@
 
 ### Namecheap.com WHMCS Registrar Plugin
 
-Further development of the WHMCS Namecheap SSL Plugin has stopped because user uptake is low.
+Further development of the WHMCS Namecheap Registrar Plugin has stopped because user uptake is low.
 If you experience any problems with plugin performance, [Contact Us](https://www.namecheap.com/support/live-chat/general/).
 ***
 
